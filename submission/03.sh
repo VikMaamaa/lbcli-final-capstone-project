@@ -1,26 +1,13 @@
 # Which tx in block 216,351 spends the coinbase output of block 216,128?
-# Get the block hash of block 216,128
-bitcoin-cli -signet getblockhash 216128
+#!/bin/bash
+# Which tx in block 216,351 spends the coinbase output of block 216,128?
 
-# The coinbase tx is always the first transaction (index 0)
-bitcoin-cli -signet getblock $(bitcoin-cli -signet getblockhash 216128) 2 | jq -r '.tx[0].txid'
+# Getting the blockhash of the source block (216,128) and the spending block (216,351)
+source_block_hash=$(bitcoin-cli -signet -named getblockhash 216128)
+spending_block_hash=$(bitcoin-cli -signet -named getblockhash 216351)
 
-# Save the coinbase txid 
-COINBASE_TXID=$(bitcoin-cli -signet getblock $(bitcoin-cli -signet getblockhash 216128) 2 | jq -r '.tx[0].txid')
+# Getting the txid of the coinbase transaction in the source block (216,128)
+source_coinbase_txid=$(bitcoin-cli -signet -named getblock $source_block_hash | jq -r '.tx[0]')
 
-# Confirm it saved correctly
-echo $COINBASE_TXID
-
-# Get the block hash of block 216,351
-bitcoin-cli -signet getblockhash 216351
-
-# Loop through every tx in block 216,351
-# Return the spending tx's txid
-bitcoin-cli -signet getblock $(bitcoin-cli -signet getblockhash 216351) 2 | jq -r --arg txid "$COINBASE_TXID" '
-  .tx[]                          # iterate over all transactions
-  | select(                      # filter to only matching transactions
-      .vin[]                     # iterate over all inputs
-      | .txid == $txid           # check if input spends our coinbase
-    )
-  | .txid                        # return the txid of the spending transaction
-'
+# Searching the spending block (216,351) for the transaction that spends the source coinbase output
+bitcoin-cli -signet -named getblock $spending_block_hash 2 | jq -r '.tx[] | select(.vin[].txid == "'$source_coinbase_txid'") | .txid'
